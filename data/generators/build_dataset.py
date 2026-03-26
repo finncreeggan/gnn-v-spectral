@@ -25,7 +25,7 @@ from data.generators.sbm import SBMConfig, generate_sbm
 
 GeneratorFn = Callable[[Any, int], tuple[nx.Graph, np.ndarray, dict[str, Any]]]
 
-DEFAULT_DATASET_ROOT = Path("data/cache/synthetic_benchmark")
+DEFAULT_DATASET_ROOT = Path("data/cache/synthetic")
 DEFAULT_NUM_BASE_GRAPHS = 5
 DEFAULT_NOISE_FRACS = [i / 100 for i in range(5, 50, 5)]
 
