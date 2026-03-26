@@ -26,4 +26,9 @@ venv = ".venv"
 
 [tool.pytest.ini_options]
 testpaths = ["test/"]
-python_files = ["test.py"]
+python_files = ["test_*.py"]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.0.2",
+]
