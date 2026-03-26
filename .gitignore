@@ -1,0 +1,7 @@
+data/cache/*
+!data/cache/.gitkeep
+results/*
+!results/.gitkeep
+__pycache__/
+*.py[cod]
+.python-version
