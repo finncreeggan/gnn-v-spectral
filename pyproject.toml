@@ -8,6 +8,7 @@ dependencies = [
     "comet-ml>=3.57.3",
     "jaxtyping>=0.3.9",
     "networkx>=3.6.1",
+    "optuna>=4.8.0",
     "pandas>=3.0.1",
     "scikit-learn>=1.8.0",
     "scipy>=1.17.1",
