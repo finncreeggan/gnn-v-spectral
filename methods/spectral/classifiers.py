@@ -99,7 +99,8 @@ class LPClassifier(SpectralClassifier):
     def fit(
         self,
         data: GraphData,
-        embeddings: Float[Tensor, "n_nodes d"],
+        embeddings: Float[Tensor, "n_nodes d_emb"],
+        features: Float[Tensor, "n_nodes d_feat"],
     ) -> Self:
         n_nodes = data.labels.shape[0]
         num_classes = data.num_classes
@@ -122,7 +123,8 @@ class LPClassifier(SpectralClassifier):
 
     def predict(
         self,
-        embeddings: Float[Tensor, "n_nodes d"],
+        embeddings: Float[Tensor, "n_nodes d_emb"],
+        features: Float[Tensor, "n_nodes d_feat"],
     ) -> Int[Tensor, "n_nodes"]:
         if self._predictions is None:
             raise RuntimeError("LPClassifier.fit() must be called before predict().")
