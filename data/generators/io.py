@@ -6,6 +6,8 @@ from typing import Any
 import networkx as nx
 import numpy as np
 import pandas as pd
+import torch
+from jaxtyping import Int
 
 
 def _validate_graph_and_labels(G: nx.Graph, labels: np.ndarray) -> np.ndarray:
@@ -222,6 +224,27 @@ def write_metadata_csv(rows: list[dict[str, Any]], path: str | Path) -> Path:
     return path
 
 
+def load_edge_index(edge_path: str | Path) -> Int[torch.Tensor, "2 num_edges"]:
+    """
+    Load an edge-list CSV and return an undirected edge_index tensor.
+
+    The CSV must have 'src' and 'dst' columns (stored once with src < dst).
+    Both directions are added so the result is undirected.
+
+    Parameters
+    ----------
+    edge_path : str | Path
+
+    Returns
+    -------
+    Int[Tensor, "2 num_edges"]
+    """
+    df = pd.read_csv(edge_path)
+    src = torch.tensor(df["src"].to_numpy(dtype=np.int64), dtype=torch.long)
+    dst = torch.tensor(df["dst"].to_numpy(dtype=np.int64), dtype=torch.long)
+    return torch.stack([torch.cat([src, dst]), torch.cat([dst, src])], dim=0)
+
+
 __all__ = [
     "format_base_graph_id",
     "format_noise_code",
@@ -230,6 +253,7 @@ __all__ = [
     "graph_to_edgelist_df",
     "save_graph_edgelist",
     "save_labels",
+    "load_edge_index",
     "make_metadata_row",
     "write_metadata_csv",
 ]
