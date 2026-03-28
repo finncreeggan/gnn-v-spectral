@@ -51,7 +51,6 @@ def kcut_eigenspectrum(
     edge_index: Int[Tensor, "2 num_edges"],
     num_nodes: int,
     *,
-    eigengap: float | None = None,
     all_V: Float[Tensor, "num_nodes num_nodes"] | None = None,
     all_eigenvalues: Float[Tensor, "num_nodes"] | None = None,
 ) -> tuple[Float[Tensor, "num_nodes k"], Float[Tensor, "k"]]:

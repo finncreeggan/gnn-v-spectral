@@ -1,7 +1,7 @@
 """ Data Loading"""
 
 import torch
-from jaxtyping import Int
+from jaxtyping import Int, Float
 from dataclasses import dataclass
 
 from torch_geometric.data import Dataset
@@ -19,16 +19,28 @@ class DatasetNames():
 
 @dataclass
 class GraphData():
-    graph: Dataset | BaseData
+    graph: BaseData
     num_classes: int
     labels: Int[torch.Tensor, "n_nodes"]
 
     train_idx: Int[torch.Tensor, "num_train_nodes"]
-    valid_idx: Int[torch.Tensor, "num_valid_nodes"]
+    val_idx: Int[torch.Tensor, "num_valid_nodes"]
     test_idx: Int[torch.Tensor, "num_test_nodes"]
+
+    whole_eigenspectrum: Float[torch.Tensor, "n_nodes n_nodes"]
+    kcut_eigenspectrum: Float[torch.Tensor, "n_nodes n_eigenvectors"]
+    regularized_eigenspectrum: Float[torch.Tensor, "n_nodes n_nodes"]
+
+    whole_eigenvals: Float[torch.Tensor, "n_nodes"]
+    kcut_eigenvals: Float[torch.Tensor, "n_eigenvectors"]
+    regularized_eigenvals: Float[torch.Tensor, "n_nodes"]
+
+    features: Float[torch.Tensor, "n_nodes feature_dim"]
+
 
 #### Dataloading ####
 def load_graph_data(dataset_name: str) -> GraphData:
+    "IN PROGRESS"
     if dataset_name == DatasetNames.SBM_RAND:
         pass
     elif dataset_name == DatasetNames.SBM_TARG:

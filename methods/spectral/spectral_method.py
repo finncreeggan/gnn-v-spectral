@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Literal, Self
+from typing import Literal
 from jaxtyping import Float, Int
 
 import torch
@@ -75,14 +75,14 @@ class SpectralMethod(BaseMethod):
             )
         self.embedding_type = embedding_type
         self.classifier_type = classifier_type
-        self._classifier: SpectralClassifier = (
+        self.classifier: SpectralClassifier = (
             LRClassifier(seed=config.seed)
             if classifier_type == "lr"
             else LPClassifier()
         )
-        self._embeddings = embeddings
+        self.embeddings = embeddings
 
-    def fit(self, data: GraphData) -> Self:
+    def fit(self, data: GraphData) -> SpectralClassifier:
         """
         Compute spectral embedding on the full graph; fit classifier on train_idx.
 
@@ -97,25 +97,25 @@ class SpectralMethod(BaseMethod):
 
         Returns
         -------
-        Self
+        SpectralClassifier
         """
         num_nodes = data.graph.num_nodes
         edge_index: Int[torch.Tensor, "2 num_edges"] = data.graph.edge_index
         assert num_nodes is not None, "GraphData.graph.num_nodes must be set."
 
-        if self._embeddings is None:
-            self._embeddings, _ = get_spectral_embeddings(
+        if self.embeddings is None:
+            self.embeddings, _ = get_spectral_embeddings(
                 self.embedding_type, edge_index, num_nodes, #type: ignore
             )
 
-        self._classifier.fit(data, self._embeddings, data.graph.x)
-        return self
+        self.classifier.fit(data, self.embeddings, data.graph.x)
+        return self.classifier
 
     def score(self, data: GraphData) -> dict[str, float]:
         """
-        Predict community labels for data.valid_idx and compute metrics.
+        Predict community labels for data.val_idx and compute metrics.
 
-        ARI computed via sklearn.metrics against data.labels[valid_idx].
+        ARI computed via sklearn.metrics against data.labels[val_idx].
         relative_ARI is float("nan"); filled in at pipeline level.
 
         Parameters
@@ -127,14 +127,14 @@ class SpectralMethod(BaseMethod):
         dict[str, float]
             Keys: "ARI", "relative_ARI".
         """
-        if self._embeddings is None:
+        if self.embeddings is None:
             raise RuntimeError("SpectralMethod.fit() must be called before score().")
 
-        preds = self._classifier.predict(self._embeddings, data.graph.x)
-        true = data.labels[data.valid_idx].numpy()
-        pred = preds[data.valid_idx].numpy()
+        preds = self.classifier.predict(self.embeddings, data.graph.x)
+        true = data.labels[data.val_idx].numpy()
+        pred = preds[data.val_idx].numpy()
 
         return {
             "ARI": float(adjusted_rand_score(true, pred)),
-            "relative_ARI": float("nan"),
+            "relative_ARI": float("nan"), # TODO
         }
