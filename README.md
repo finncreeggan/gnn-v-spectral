@@ -37,7 +37,6 @@ GNNs:
 ## What to compare and how to ensure fair comparisons?
 - ARI and relative ARI
 - Parameter count (GNNs might have higher expressivity due to param count as opposed to noise robustness)
-- FLOP count / computational time.
-- GNNs receive either no node features (for now - To discuss)
 - Hyperparameter tuning on fixed number of Optuna trials (10).
+- FLOP count / computational time.
 

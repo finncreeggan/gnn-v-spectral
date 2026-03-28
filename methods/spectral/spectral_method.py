@@ -4,8 +4,17 @@ from __future__ import annotations
 
 from typing import Literal, Self
 
+import torch
+from sklearn.metrics import adjusted_rand_score, normalized_mutual_info_score
+
 from data import GraphData
 from methods.base import BaseMethod, ExperimentConfig
+from methods.spectral.classifiers import LPClassifier, LRClassifier, SpectralClassifier
+from methods.spectral.embeddings import (
+    kcut_eigenspectrum,
+    regularized_eigenspectrum,
+    whole_eigenspectrum,
+)
 
 
 class SpectralMethod(BaseMethod):
@@ -19,7 +28,8 @@ class SpectralMethod(BaseMethod):
     Parameters
     ----------
     config : ExperimentConfig
-        config.n_eigenvectors must be set (not None) when embedding_type="kcut".
+        config.n_eigenvectors must be set (not None) when embedding_type="kcut"
+        or embedding_type="regularized".
     embedding_type : {"whole", "kcut", "regularized"}
         Which Laplacian spectrum variant to use as node features:
           "whole"       — full eigenspectrum of the normalised Laplacian
@@ -42,7 +52,19 @@ class SpectralMethod(BaseMethod):
         embedding_type: Literal["whole", "kcut", "regularized"],
         classifier_type: Literal["lr", "lp"],
     ) -> None:
-        raise NotImplementedError
+        super().__init__(config)
+        if embedding_type in ("kcut", "regularized") and config.n_eigenvectors is None:
+            raise ValueError(
+                f"config.n_eigenvectors must be set for embedding_type={embedding_type!r}"
+            )
+        self.embedding_type = embedding_type
+        self.classifier_type = classifier_type
+        self._classifier: SpectralClassifier = (
+            LRClassifier(seed=config.seed)
+            if classifier_type == "lr"
+            else LPClassifier()
+        )
+        self._embeddings: torch.Tensor | None = None
 
     def fit(self, data: GraphData) -> Self:
         """
@@ -61,13 +83,29 @@ class SpectralMethod(BaseMethod):
         -------
         Self
         """
-        raise NotImplementedError
+        num_nodes = data.labels.shape[0]
+        edge_index = data.graph.edge_index
+
+        if self.embedding_type == "whole":
+            embeddings = whole_eigenspectrum(edge_index, num_nodes)
+        elif self.embedding_type == "kcut":
+            embeddings = kcut_eigenspectrum(
+                edge_index, num_nodes, n_eigenvectors=self.config.n_eigenvectors
+            )
+        else:  # "regularized"
+            embeddings = regularized_eigenspectrum(
+                edge_index, num_nodes, n_eigenvectors=self.config.n_eigenvectors
+            )
+
+        self._embeddings = embeddings
+        self._classifier.fit(data, embeddings, data.graph.x)
+        return self
 
     def score(self, data: GraphData) -> dict[str, float]:
         """
         Predict community labels for data.valid_idx and compute metrics.
 
-        ARI and NMI computed via sklearn.metrics against data.labels[valid_idx].
+        ARI computed via sklearn.metrics against data.labels[valid_idx].
         relative_ARI is float("nan"); filled in at pipeline level.
 
         Parameters
@@ -77,6 +115,16 @@ class SpectralMethod(BaseMethod):
         Returns
         -------
         dict[str, float]
-            Keys: "ARI", "NMI", "relative_ARI".
+            Keys: "ARI", "relative_ARI".
         """
-        raise NotImplementedError
+        if self._embeddings is None:
+            raise RuntimeError("SpectralMethod.fit() must be called before score().")
+
+        preds = self._classifier.predict(self._embeddings, data.graph.x)
+        true = data.labels[data.valid_idx].numpy()
+        pred = preds[data.valid_idx].numpy()
+
+        return {
+            "ARI": float(adjusted_rand_score(true, pred)),
+            "relative_ARI": float("nan"),
+        }

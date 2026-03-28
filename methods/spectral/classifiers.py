@@ -23,6 +23,9 @@ class SpectralClassifier(abc.ABC):
     returns class assignments for every node.
 
     embeddings and features are concatenated before fitting/predicting.
+
+    When SpectralMethod.fit() is called, it should pass data.graph.x as
+    the features argument.
     """
 
     @abc.abstractmethod
