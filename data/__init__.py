@@ -48,6 +48,7 @@ def load_graph_data(
     metadata_csv: str | Path,
     graph_id: str,
     spectra_path: str | Path,
+    seed: int = 0,
     *,
     features_pt: str | Path | None = None,
     dataset_root: str | Path = DEFAULT_DATASET_ROOT,
@@ -99,6 +100,8 @@ def load_graph_data(
     else:
         features = torch.eye(num_nodes)
 
+    # Set seed
+    torch.manual_seed(seed)
     perm      = torch.randperm(num_nodes)
     train_end = int(0.7  * num_nodes)
     val_end   = int(0.85 * num_nodes)

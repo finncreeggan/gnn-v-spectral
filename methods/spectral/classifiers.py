@@ -7,6 +7,7 @@ from typing import Self
 
 import torch
 from jaxtyping import Float, Int
+from sklearn.ensemble import RandomForestClassifier as _RandomForestClassifier
 from sklearn.linear_model import LogisticRegression
 from torch import Tensor
 from torch_geometric.nn import LabelPropagation
@@ -76,6 +77,45 @@ class LRClassifier(SpectralClassifier):
     ) -> Int[Tensor, "n_nodes"]:
         X = torch.cat([embeddings, features], dim=-1)
         preds = self._lr.predict(X.numpy())
+        return torch.from_numpy(preds)
+
+
+class RFClassifier(SpectralClassifier):
+    """
+    Random forest fit on train_idx embeddings, predict on all nodes.
+
+    Parameters
+    ----------
+    seed : int
+        Random seed passed to sklearn RandomForestClassifier.
+    n_estimators : int
+        Number of trees in the forest.
+    """
+
+    def __init__(self, *, seed: int, n_estimators: int) -> None:
+        self._rf = _RandomForestClassifier(
+            n_estimators=n_estimators, random_state=seed
+        )
+
+    def fit(
+        self,
+        data: GraphData,
+        embeddings: Float[Tensor, "n_nodes d_emb"],
+        features: Float[Tensor, "n_nodes d_feat"],
+    ) -> Self:
+        X = torch.cat([embeddings, features], dim=-1)
+        X_train = X[data.train_idx].numpy()
+        y_train = data.labels[data.train_idx].numpy()
+        self._rf.fit(X_train, y_train)
+        return self
+
+    def predict(
+        self,
+        embeddings: Float[Tensor, "n_nodes d_emb"],
+        features: Float[Tensor, "n_nodes d_feat"],
+    ) -> Int[Tensor, "n_nodes"]:
+        X = torch.cat([embeddings, features], dim=-1)
+        preds = self._rf.predict(X.numpy())
         return torch.from_numpy(preds)
 
 

@@ -21,12 +21,15 @@ METHOD_REGISTRY: dict[str, type | partial] = {
     # Spectral: whole eigenspectrum
     "whole_lr":        partial(SpectralMethod, embedding_type="whole",        classifier_type="lr"),
     "whole_lp":        partial(SpectralMethod, embedding_type="whole",        classifier_type="lp"),
+    "whole_rf":        partial(SpectralMethod, embedding_type="whole",        classifier_type="rf"),
     # Spectral: k-cut eigenspectrum
     "kcut_lr":         partial(SpectralMethod, embedding_type="kcut",         classifier_type="lr"),
     "kcut_lp":         partial(SpectralMethod, embedding_type="kcut",         classifier_type="lp"),
+    "kcut_rf":         partial(SpectralMethod, embedding_type="kcut",         classifier_type="rf"),
     # Spectral: regularized eigenspectrum
     "regularized_lr":  partial(SpectralMethod, embedding_type="regularized",  classifier_type="lr"),
     "regularized_lp":  partial(SpectralMethod, embedding_type="regularized",  classifier_type="lp"),
+    "regularized_rf":  partial(SpectralMethod, embedding_type="regularized",  classifier_type="rf"),
     # GNNs
     "sgc":             SGC,
     "gcn":             GCN,

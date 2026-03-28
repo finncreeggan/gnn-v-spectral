@@ -39,12 +39,13 @@ class ExperimentConfig:
         Number of attention heads; required for GAT.
     k_hops : int | None
         Number of propagation hops; required for SGC.
+    n_estimators : int | None
+        Number of trees in the random forest; required for classifier_type="rf".
     """
 
     num_classes: int
     seed: int
-    # Spectral
-    n_eigenvectors: int | None = None
+
     # GNN shared
     hidden_dim: int | None = None
     num_layers: int | None = None
@@ -55,6 +56,8 @@ class ExperimentConfig:
     num_heads: int | None = None
     # SGC-specific
     k_hops: int | None = None
+    # RF-specific
+    n_estimators: int | None = None
 
 
 class BaseMethod(abc.ABC):
@@ -79,7 +82,13 @@ class BaseMethod(abc.ABC):
         self.config = config
 
     @abc.abstractmethod
-    def fit(self, data: GraphData) -> Self:
+    def fit(
+        self,
+        data: GraphData,
+        *,
+        study_name: str | None = None,
+        optuna_storage_path: str | None = None,
+    ) -> Self:
         """
         Fit or train the method using data.train_idx nodes only.
 
@@ -87,6 +96,10 @@ class BaseMethod(abc.ABC):
         ----------
         data : GraphData
             Graph and associated split indices.
+        study_name : str | None
+            Optuna study name; passed through to hyperparameter search if used.
+        optuna_storage_path : str | None
+            Path to Optuna storage backend; passed through if used.
 
         Returns
         -------
@@ -96,14 +109,21 @@ class BaseMethod(abc.ABC):
         raise NotImplementedError
 
     @abc.abstractmethod
-    def score(self, data: GraphData) -> dict[str, float]:
+    def score(
+        self,
+        data: GraphData,
+        *,
+        use_test_idx: bool = False,
+    ) -> dict[str, float]:
         """
-        Evaluate predictions on data.valid_idx nodes.
+        Evaluate predictions on data.val_idx (or data.test_idx) nodes.
 
         Parameters
         ----------
         data : GraphData
             Graph and associated split indices.
+        use_test_idx : bool
+            If True, evaluate on data.test_idx instead of data.val_idx.
 
         Returns
         -------
