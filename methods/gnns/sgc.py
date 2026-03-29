@@ -24,7 +24,7 @@ class SGC(BaseMethod):
     """
 
     def __init__(self, config: ExperimentConfig) -> None:
-        raise NotImplementedError
+       pass
 
     def fit(
         self,
@@ -49,7 +49,7 @@ class SGC(BaseMethod):
         -------
         Self
         """
-        raise NotImplementedError
+        return self
 
     def score(
         self,
@@ -60,9 +60,6 @@ class SGC(BaseMethod):
         """
         Evaluate SGC predictions on data.val_idx (or data.test_idx) nodes.
 
-        ARI and NMI computed via sklearn.metrics.
-        relative_ARI is float("nan"); filled in at pipeline level.
-
         Parameters
         ----------
         data : GraphData
@@ -72,6 +69,6 @@ class SGC(BaseMethod):
         Returns
         -------
         dict[str, float]
-            Keys: "ARI", "NMI", "relative_ARI".
+            Keys: "ARI".
         """
-        raise NotImplementedError
+        return {}

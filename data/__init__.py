@@ -14,7 +14,6 @@ from torch_geometric.data import Data
 from torch_geometric.data.data import BaseData
 
 from data.generators.io import load_edge_index
-from methods.spectral.embeddings import kcut_eigenspectrum
 
 DEFAULT_DATASET_ROOT = "data/cache/synthetic"
 
@@ -47,7 +46,6 @@ class GraphData():
 def load_graph_data(
     metadata_csv: str | Path,
     graph_id: str,
-    spectra_path: str | Path,
     *,
     features_pt: str | Path | None = None,
     seed: int = 0,
@@ -62,9 +60,6 @@ def load_graph_data(
         Path to graph_index_{family}.csv.
     graph_id : str
         Row identifier in the metadata CSV.
-    spectra_path : str | Path
-        Path to the precomputed .pt file containing whole and regularized
-        eigenspectra (keys: whole_V, whole_evals, reg_V, reg_evals).
     features_pt : str | Path | None
         Path to a .pt file containing a Float[Tensor, "n_nodes feature_dim"]
         node feature matrix. If None, falls back to an n_nodes x n_nodes
@@ -73,7 +68,7 @@ def load_graph_data(
         Passed to torch.manual_seed before generating the 70/15/15
         train/val/test split so the partition is deterministic. Default 0.
     dataset_root : str | Path
-        Root used to resolve relative edge_path and label_path from the CSV.
+        Root used to resolve relative paths from the CSV.
 
     Returns
     -------
@@ -90,7 +85,9 @@ def load_graph_data(
     edge_index = load_edge_index(edge_path)
     graph      = Data(edge_index=edge_index, num_nodes=num_nodes)
 
-    spectra     = torch.load(spectra_path, weights_only=False)
+    from methods.spectral.embeddings import kcut_eigenspectrum # To avoid import circular loop
+
+    spectra     = torch.load(str(dataset_root / row["spectra_path"]), weights_only=False)
     whole_V     = spectra["whole_V"]
     whole_evals = spectra["whole_evals"]
 

@@ -55,13 +55,15 @@ def kcut_eigenspectrum(
     all_eigenvalues: Float[Tensor, "num_nodes"] | None = None,
 ) -> tuple[Float[Tensor, "num_nodes k"], Float[Tensor, "k"]]:
     
-    # TODO: Read more into this!
     """
     Bottom-k eigenvectors of the symmetric normalized Laplacian, where k is
     selected automatically via the eigengap heuristic on the full spectrum.
 
-    Finds the largest gap between consecutive eigenvalues (sorted ascending)
-    at position k, then returns the first k eigenvectors.
+    The heuristic searches for the largest gap among eigenvalues starting from
+    index 1, skipping the trivial zero eigenvalue (eigenvalue[0] ≈ 0 for any
+    connected graph). Without this skip, the dominant gap between 0 and the
+    first non-zero eigenvalue (the spectral gap) would always win, collapsing
+    k to 1 regardless of the number of communities.
 
     Parameters
     ----------
@@ -83,8 +85,9 @@ def kcut_eigenspectrum(
         all_V, all_eigenvalues = whole_eigenspectrum(edge_index, num_nodes)
 
     eigenvalues_np = all_eigenvalues.numpy()
-    k = int(np.argmax(np.diff(eigenvalues_np))) + 1
-    return all_V[:, :k], all_eigenvalues[:k]
+    k = int(np.argmax(np.diff(eigenvalues_np[1:]))) + 2
+    # Skip column 0 (constant eigenvector for eigenvalue≈0, carries no community signal)
+    return all_V[:, 1:k+1], all_eigenvalues[1:k+1]
 
 
 def regularized_eigenspectrum(

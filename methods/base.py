@@ -71,11 +71,8 @@ class BaseMethod(abc.ABC):
     fit(data)   — trains/fits using data.train_idx nodes only
     score(data) — evaluates on data.valid_idx nodes only
 
-    score() returns a dict with three keys:
-        "ARI"          : float — adjusted rand index (sklearn.metrics)
-        "NMI"          : float — normalised mutual information (sklearn.metrics)
-        "relative_ARI" : float — ARI / baseline_ARI at noise=0;
-                                 always float("nan") here, filled at pipeline level
+    score() returns a dict with one key:
+        "ARI" : float — adjusted rand index (sklearn.metrics)
     """
 
     def __init__(self, config: ExperimentConfig) -> None:
@@ -128,7 +125,6 @@ class BaseMethod(abc.ABC):
         Returns
         -------
         dict[str, float]
-            Keys: "ARI", "NMI", "relative_ARI".
-            "relative_ARI" is float("nan"); computed at pipeline level.
+            Keys: "ARI".
         """
         raise NotImplementedError

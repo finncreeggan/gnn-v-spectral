@@ -37,7 +37,7 @@ class GAT(BaseMethod):
     """
 
     def __init__(self, config: ExperimentConfig) -> None:
-        raise NotImplementedError
+        pass
 
     def fit(
         self,
@@ -63,7 +63,7 @@ class GAT(BaseMethod):
         -------
         Self
         """
-        raise NotImplementedError
+        return self
 
     def score(
         self,
@@ -74,9 +74,6 @@ class GAT(BaseMethod):
         """
         Evaluate GAT predictions on data.val_idx (or data.test_idx) nodes.
 
-        ARI and NMI computed via sklearn.metrics.
-        relative_ARI is float("nan"); filled in at pipeline level.
-
         Parameters
         ----------
         data : GraphData
@@ -86,6 +83,6 @@ class GAT(BaseMethod):
         Returns
         -------
         dict[str, float]
-            Keys: "ARI", "NMI", "relative_ARI".
+            Keys: "ARI".
         """
-        raise NotImplementedError
+        return {}

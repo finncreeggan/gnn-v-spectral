@@ -5,7 +5,7 @@ from __future__ import annotations
 import numpy as np
 import torch
 from jaxtyping import Int
-from sklearn.metrics import adjusted_rand_score, normalized_mutual_info_score
+from sklearn.metrics import adjusted_rand_score
 
 from data import GraphData
 from methods.base import BaseMethod
@@ -35,29 +35,6 @@ def compute_ari(
     pred = pred_labels[data.val_idx].cpu().numpy()
     return float(adjusted_rand_score(true, pred))
 
-
-def compute_nmi(
-    data: GraphData,
-    pred_labels: Int[torch.Tensor, "n_nodes"],
-) -> float:
-    """
-    Compute Normalised Mutual Information on data.valid_idx nodes.
-
-    Parameters
-    ----------
-    data : GraphData
-        Provides ground-truth labels and valid_idx split.
-    pred_labels : Int[torch.Tensor, "n_nodes"]
-        Predicted community labels for all nodes in the graph.
-
-    Returns
-    -------
-    float
-        NMI in [0, 1]; 0 = no mutual information, 1 = perfect agreement.
-    """
-    true = data.labels[data.val_idx].cpu().numpy()
-    pred = pred_labels[data.val_idx].cpu().numpy()
-    return float(normalized_mutual_info_score(true, pred))
 
 
 def compute_relative_ari(*, ari: float, baseline_ari: float) -> float:
