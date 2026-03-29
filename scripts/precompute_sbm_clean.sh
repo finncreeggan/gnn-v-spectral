@@ -6,7 +6,12 @@ ROOT="$(dirname "$SCRIPT_DIR")"
 
 cd "$ROOT"
 
-python data/precompute_spectra.py \
-    --family sbm \
-    --noise-type clean \
-    --root data/cache/synthetic
+for family in sbm lfr; do
+    for noise_type in clean random targeted_betweenness; do
+        echo "Running family=$family noise_type=$noise_type"
+        uv run data/precompute_spectra.py \
+            --family "$family" \
+            --noise-type "$noise_type" \
+            --root data/cache/synthetic
+    done
+done

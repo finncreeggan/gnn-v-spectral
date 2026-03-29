@@ -37,8 +37,8 @@ def precompute(
     families: tuple[str, ...],
     noise_types: tuple[str, ...],
 ) -> None:
-    for family in families:
-        out_dir = root / family
+    for idx, family in enumerate(families):
+        out_dir = root / family / noise_types[idx] / "spectra"  # 
         out_dir.mkdir(exist_ok=True)
 
         meta_path = root / "metadata" / f"graph_index_{family}.csv"
@@ -67,9 +67,7 @@ def precompute(
             print(f"  {graph_id} ({num_nodes} nodes) ...", end=" ", flush=True)
 
             whole_V, whole_evals = whole_eigenspectrum(edge_index, num_nodes) # evals = eigenvalues
-            reg_V, reg_evals = regularized_eigenspectrum(
-                edge_index, num_nodes,
-            )
+            reg_V, reg_evals = regularized_eigenspectrum(edge_index, num_nodes,)
 
             torch.save(
                 {
