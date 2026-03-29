@@ -65,15 +65,10 @@ class SpectralMethod(BaseMethod):
         self,
         config: ExperimentConfig,
         *,
-        embeddings: Float[torch.Tensor, "n_nodes n_eigenvectors"] | None = None,
         embedding_type: Literal["whole", "kcut", "regularized"],
         classifier_type: Literal["lr", "lp", "rf"],
     ) -> None:
         super().__init__(config)
-        if embedding_type in ("kcut", "regularized"):
-            raise ValueError(
-                f"config.n_eigenvectors must be set for embedding_type={embedding_type!r}"
-            )
         self.embedding_type = embedding_type
         self.classifier_type = classifier_type
         if classifier_type == "lr":
@@ -86,17 +81,18 @@ class SpectralMethod(BaseMethod):
             self.classifier = RFClassifier(seed=config.seed, n_estimators=config.n_estimators)
         else:
             raise ValueError(f"Invalid classifier_type: {classifier_type!r}")
-        self.embeddings = embeddings
+        self.embeddings: Float[torch.Tensor, "n_nodes n_eigenvectors"] | None = None
 
     def fit(
         self,
         data: GraphData,
         *,
+        embeddings: Float[torch.Tensor, "n_nodes n_eigenvectors"] | None = None,
         study_name: str | None = None,
         optuna_storage_path: str | None = None,
     ) -> SpectralClassifier:
         """
-        Compute spectral embedding on the full graph; fit classifier on train_idx.
+        Fit classifier on train_idx using spectral embeddings.
 
         For classifier_type="lr":
             Fits a logistic regression on the embeddings of data.train_idx nodes.
@@ -106,6 +102,8 @@ class SpectralMethod(BaseMethod):
         Parameters
         ----------
         data : GraphData
+        embeddings : Float[Tensor, "n_nodes n_eigenvectors"] | None
+            Precomputed spectral embeddings. If None, computed via get_spectral_embeddings.
         study_name : str | None
             Unused; present for API consistency with BaseMethod.
         optuna_storage_path : str | None
@@ -119,12 +117,16 @@ class SpectralMethod(BaseMethod):
         edge_index: Int[torch.Tensor, "2 num_edges"] = data.graph.edge_index
         assert num_nodes is not None, "GraphData.graph.num_nodes must be set."
 
-        if self.embeddings is None:
-            self.embeddings, _ = get_spectral_embeddings(
+        if embeddings is None:
+            embeddings, _ = get_spectral_embeddings(
                 self.embedding_type, edge_index, num_nodes, #type: ignore
             )
 
-        self.classifier.fit(data, self.embeddings, data.graph.x)
+        features = data.features
+        assert features is not None, "GraphData.features must be set for SpectralMethod."
+        
+        self.classifier.fit(data, embeddings, features)
+        self.embeddings = embeddings
         return self.classifier
 
     def score(
@@ -137,8 +139,6 @@ class SpectralMethod(BaseMethod):
         Predict community labels for data.val_idx (or data.test_idx) and compute metrics.
 
         ARI computed via sklearn.metrics against data.labels[idx].
-        relative_ARI is float("nan"); filled in at pipeline level.
-
         Parameters
         ----------
         data : GraphData
@@ -148,17 +148,15 @@ class SpectralMethod(BaseMethod):
         Returns
         -------
         dict[str, float]
-            Keys: "ARI", "relative_ARI".
+            Keys: "ARI".
         """
         if self.embeddings is None:
             raise RuntimeError("SpectralMethod.fit() must be called before score().")
 
         idx = data.test_idx if use_test_idx else data.val_idx
-        preds = self.classifier.predict(self.embeddings, data.graph.x)
+        features = data.graph.x if data.features is None else data.features
+        preds = self.classifier.predict(self.embeddings, features)
         true = data.labels[idx].numpy()
         pred = preds[idx].numpy()
 
-        return {
-            "ARI": float(adjusted_rand_score(true, pred)),
-            "relative_ARI": float("nan"), # TODO
-        }
+        return {"ARI": float(adjusted_rand_score(true, pred))}
