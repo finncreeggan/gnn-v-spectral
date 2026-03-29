@@ -74,9 +74,6 @@ class GAT(BaseMethod):
         """
         Evaluate GAT predictions on data.val_idx (or data.test_idx) nodes.
 
-        ARI computed via sklearn.metrics.
-        relative_ARI is float("nan"); filled in at pipeline level.
-
         Parameters
         ----------
         data : GraphData
@@ -86,6 +83,6 @@ class GAT(BaseMethod):
         Returns
         -------
         dict[str, float]
-            Keys: "ARI", "relative_ARI".
+            Keys: "ARI".
         """
         return {}
