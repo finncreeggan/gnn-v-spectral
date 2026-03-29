@@ -25,18 +25,16 @@ from pathlib import Path
 
 import pandas as pd
 
-from pipeline.make_transductive_splits import load_split
-
 logger = logging.getLogger(__name__)
 
 # ── The 9 model keys expected in METHOD_REGISTRY ────────────────────────────
 MODEL_KEYS = [
-    "whole_eigen_logreg",
-    "whole_eigen_rf",
-    "kcut_eigen_logreg",
-    "kcut_eigen_rf",
-    "regularized_eigen_logreg",
-    "regularized_eigen_rf",
+    "whole_lr",
+    "whole_rf",
+    "kcut_lr",
+    "kcut_rf",
+    "regularized_lr",
+    "regularized_rf",
     "sgc",
     "gcn",
     "gat",
@@ -45,20 +43,24 @@ MODEL_KEYS = [
 DEFAULT_OPTUNA_TRIALS = 40
 
 
-def _get_model(model_key: str):
-    """Retrieve a model wrapper from Sabrina's GraphModelSuite.
+def _get_model(model_key: str, num_classes: int):
+    """Retrieve and instantiate a model from METHOD_REGISTRY.
 
-    *** PLACEHOLDER ***
-    This function will import from methods.registry once the model
-    wrappers are registered.  For now it raises NotImplementedError.
+    Parameters
+    ----------
+    model_key : str
+        Key into METHOD_REGISTRY (one of MODEL_KEYS).
+    num_classes : int
+        Number of communities/classes in the graph, required by ExperimentConfig.
+
+    Returns
+    -------
+    BaseMethod instance.
     """
-    # TODO(Sabrina): replace with actual registry lookup, e.g.:
-    # from methods.registry import METHOD_REGISTRY
-    # return METHOD_REGISTRY[model_key]()
-    raise NotImplementedError(
-        f"Model '{model_key}' is not yet registered in METHOD_REGISTRY. "
-        "Sabrina's GraphModelSuite must populate the registry first."
-    )
+    from methods import METHOD_REGISTRY, ExperimentConfig
+    # Placeholder defaults — Optuna tuning to be wired in once Sabrina's fit() supports it
+    config = ExperimentConfig(num_classes=num_classes, seed=42)
+    return METHOD_REGISTRY[model_key](config)
 
 
 def run_single(
@@ -77,50 +79,43 @@ def run_single(
     graph_row : pd.Series
         A single row from the structural-noise experiment table.
     splits_path : path
-        CSV of precomputed node splits.
+        Retained for API compatibility but no longer used — splits are now
+        generated inside load_graph_data with a fixed seed.
     optuna_n_trials : int
         Number of Optuna trials for hyperparameter search.
+        TODO: wire into method once Sabrina's fit() supports it.
     optuna_storage_path : path, optional
         Path for the Optuna study database (SQLite).
+        TODO: wire into method once Sabrina's fit() supports it.
 
     Returns
     -------
     dict
         Raw result row ready to be appended to the results CSV.
     """
+    from data import load_graph_data
+
     graph_id = graph_row["graph_id"]
-    train_ids, val_ids, test_ids = load_split(splits_path, graph_id)
+    # spectra_path is a single .pt file (whole_V, whole_evals, reg_V, reg_evals).
+    # NOTE: build_metadata_tables.py must add a "spectra_path" column for this to work.
+    metadata_csv = f"data/synthetic_benchmark/metadata/graph_index_{graph_row['family']}.csv"
 
-    classifier = _get_model(model_key)
-
-    study_name = f"{graph_id}__{model_key}"
-
-    # ── fit (training + validation nodes, Optuna-tuned) ─────────────────
-    classifier.fit(
-        graph_path=graph_row["edge_path"],
-        label_path=graph_row["label_path"],
-        train_node_ids=train_ids,
-        validation_node_ids=val_ids,
-        whole_spectrum_path=graph_row.get("whole_spectrum_path"),
-        kcut_spectrum_path=graph_row.get("kcut_spectrum_path"),
-        regularized_spectrum_path=graph_row.get("regularized_spectrum_path"),
-        feature_path=None,  # no features in experiment 1
-        study_name=study_name,
-        optuna_storage_path=str(optuna_storage_path) if optuna_storage_path else None,
+    # Experiment 1: no node features — load_graph_data falls back to identity matrix
+    data = load_graph_data(
+        metadata_csv=metadata_csv,
+        graph_id=graph_id,
+        spectra_path=graph_row["spectra_path"],
+        seed=1,
     )
 
-    # ── score on held-out test nodes ────────────────────────────────────
-    test_ari = classifier.score(
-        graph_path=graph_row["edge_path"],
-        label_path=graph_row["label_path"],
-        test_node_ids=test_ids,
-        whole_spectrum_path=graph_row.get("whole_spectrum_path"),
-        kcut_spectrum_path=graph_row.get("kcut_spectrum_path"),
-        regularized_spectrum_path=graph_row.get("regularized_spectrum_path"),
-        feature_path=None,
-    )
+    classifier = _get_model(model_key, data.num_classes)
 
-    best_params = getattr(classifier, "best_params_", {})
+    # ── fit on train_idx (handled internally by method) ──────────────────
+    classifier.fit(data)
+
+    # ── score on val and test splits ─────────────────────────────────────
+    val_metrics  = classifier.score(data)
+    test_metrics = classifier.score(data, use_test_idx=True)
 
     return {
         "graph_id": graph_id,
@@ -132,9 +127,9 @@ def run_single(
         "model": model_key,
         "split_id": "split_1",
         "optuna_n_trials": optuna_n_trials,
-        "best_validation_ari": getattr(classifier, "best_validation_ari_", None),
-        "test_ari": test_ari,
-        "best_params_json": json.dumps(best_params),
+        "best_validation_ari": val_metrics.get("ARI"),
+        "test_ari": test_metrics.get("ARI"),
+        "best_params_json": json.dumps({}),
     }
 
 

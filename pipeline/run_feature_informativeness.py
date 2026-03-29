@@ -26,7 +26,6 @@ from pathlib import Path
 
 import pandas as pd
 
-from pipeline.make_transductive_splits import load_split
 from pipeline.run_structural_noise import MODEL_KEYS, DEFAULT_OPTUNA_TRIALS, _get_model
 
 logger = logging.getLogger(__name__)
@@ -48,50 +47,44 @@ def run_single_feature(
     row : pd.Series
         A single row from the feature-informativeness experiment table.
     splits_path : path
-        CSV of precomputed node splits.
+        Retained for API compatibility but no longer used — splits are now
+        generated inside load_graph_data with a fixed seed.
     optuna_n_trials : int
         Optuna trial budget.
+        TODO: wire into method once Sabrina's fit() supports it.
     optuna_storage_path : path, optional
         SQLite path for Optuna studies.
+        TODO: wire into method once Sabrina's fit() supports it.
 
     Returns
     -------
     dict
         Raw result row.
     """
+    from data import load_graph_data
+
     graph_id = row["graph_id"]
-    train_ids, val_ids, test_ids = load_split(splits_path, graph_id)
+    metadata_csv = f"data/synthetic_benchmark/metadata/graph_index_{row['family']}.csv"
 
-    classifier = _get_model(model_key)
-
-    study_name = (
-        f"{graph_id}__fi{row['feature_informativeness_code']}__{model_key}"
+    # Experiment 2: pass feature_path as features_pt so the feature matrix is loaded.
+    # Structure-only models (spectral) will receive features but ignore them internally.
+    # feature_path column holds a .pt file; None falls back to identity matrix.
+    data = load_graph_data(
+        metadata_csv=metadata_csv,
+        graph_id=graph_id,
+        spectra_path=row["spectra_path"],
+        features_pt=row.get("feature_path"),
+        seed=1,
     )
 
-    classifier.fit(
-        graph_path=row["edge_path"],
-        label_path=row["label_path"],
-        train_node_ids=train_ids,
-        validation_node_ids=val_ids,
-        whole_spectrum_path=row.get("whole_spectrum_path"),
-        kcut_spectrum_path=row.get("kcut_spectrum_path"),
-        regularized_spectrum_path=row.get("regularized_spectrum_path"),
-        feature_path=row.get("feature_path"),
-        study_name=study_name,
-        optuna_storage_path=str(optuna_storage_path) if optuna_storage_path else None,
-    )
+    classifier = _get_model(model_key, data.num_classes)
 
-    test_ari = classifier.score(
-        graph_path=row["edge_path"],
-        label_path=row["label_path"],
-        test_node_ids=test_ids,
-        whole_spectrum_path=row.get("whole_spectrum_path"),
-        kcut_spectrum_path=row.get("kcut_spectrum_path"),
-        regularized_spectrum_path=row.get("regularized_spectrum_path"),
-        feature_path=row.get("feature_path"),
-    )
+    # ── fit on train_idx (handled internally by method) ──────────────────
+    classifier.fit(data)
 
-    best_params = getattr(classifier, "best_params_", {})
+    # ── score on val and test splits ─────────────────────────────────────
+    val_metrics  = classifier.score(data)
+    test_metrics = classifier.score(data, use_test_idx=True)
 
     return {
         "graph_id": graph_id,
@@ -107,9 +100,9 @@ def run_single_feature(
         "model": model_key,
         "split_id": "split_1",
         "optuna_n_trials": optuna_n_trials,
-        "best_validation_ari": getattr(classifier, "best_validation_ari_", None),
-        "test_ari": test_ari,
-        "best_params_json": json.dumps(best_params),
+        "best_validation_ari": val_metrics.get("ARI"),
+        "test_ari": test_metrics.get("ARI"),
+        "best_params_json": json.dumps({}),
     }
 
 

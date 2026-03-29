@@ -46,9 +46,9 @@ class GraphData():
 def load_graph_data(
     metadata_csv: str | Path,
     graph_id: str,
-    seed: int = 0,
     *,
     features_pt: str | Path | None = None,
+    seed: int = 0,
     dataset_root: str | Path = DEFAULT_DATASET_ROOT,
 ) -> GraphData:
     """
@@ -64,6 +64,9 @@ def load_graph_data(
         Path to a .pt file containing a Float[Tensor, "n_nodes feature_dim"]
         node feature matrix. If None, falls back to an n_nodes x n_nodes
         one-hot identity matrix.
+    seed : int
+        Passed to torch.manual_seed before generating the 70/15/15
+        train/val/test split so the partition is deterministic. Default 0.
     dataset_root : str | Path
         Root used to resolve relative paths from the CSV.
 
@@ -97,7 +100,6 @@ def load_graph_data(
     else:
         features = torch.eye(num_nodes)
 
-    # Set seed
     torch.manual_seed(seed)
     perm      = torch.randperm(num_nodes)
     train_end = int(0.7  * num_nodes)
