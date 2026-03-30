@@ -165,8 +165,8 @@ if __name__ == "__main__":
 
     logging.basicConfig(level=logging.INFO)
     table_path = sys.argv[1] if len(sys.argv) > 1 else (
-        "data/synthetic_benchmark/metadata/feature_informativeness_experiment_table.csv"
+        "data/cache/synthetic/metadata/feature_informativeness_experiment_table.csv"
     )
     table = pd.read_csv(table_path)
-    output = sys.argv[2] if len(sys.argv) > 2 else "data/synthetic_benchmark/features"
+    output = sys.argv[2] if len(sys.argv) > 2 else "data/cache/synthetic/features"
     generate_all_features(table, output)

@@ -9,7 +9,7 @@ For each (graph, feature_informativeness, model) triple the pipeline:
 
   1. Loads the fixed transductive 70/15/15 split (same split reused across
      all informativeness levels for a given graph).
-  2. Calls classifier.fit(...) passing both spectral and feature paths.
+  2. Calls classifier.fit(...) passing precomputed spectral embeddings.
   3. Calls classifier.score(...) on the held-out test nodes.
   4. Appends one row to the raw results CSV.
 
@@ -26,6 +26,7 @@ from pathlib import Path
 
 import pandas as pd
 
+from data import DEFAULT_DATASET_ROOT
 from pipeline.run_structural_noise import MODEL_KEYS, DEFAULT_OPTUNA_TRIALS, _get_model
 
 logger = logging.getLogger(__name__)
@@ -34,56 +35,39 @@ logger = logging.getLogger(__name__)
 def run_single_feature(
     model_key: str,
     row: pd.Series,
-    splits_path: str | Path,
     optuna_n_trials: int = DEFAULT_OPTUNA_TRIALS,
     optuna_storage_path: str | Path | None = None,
 ) -> dict:
-    """Fit and score one model on one graph at one feature-informativeness level.
-
-    Parameters
-    ----------
-    model_key : str
-        Key into METHOD_REGISTRY.
-    row : pd.Series
-        A single row from the feature-informativeness experiment table.
-    splits_path : path
-        Retained for API compatibility but no longer used — splits are now
-        generated inside load_graph_data with a fixed seed.
-    optuna_n_trials : int
-        Optuna trial budget.
-        TODO: wire into method once Sabrina's fit() supports it.
-    optuna_storage_path : path, optional
-        SQLite path for Optuna studies.
-        TODO: wire into method once Sabrina's fit() supports it.
-
-    Returns
-    -------
-    dict
-        Raw result row.
-    """
+    """Fit and score one model on one graph at one feature-informativeness level."""
     from data import load_graph_data
+    from methods.spectral.spectral_method import SpectralMethod
 
     graph_id = row["graph_id"]
-    metadata_csv = f"data/synthetic_benchmark/metadata/graph_index_{row['family']}.csv"
+    metadata_csv = str(
+        Path(DEFAULT_DATASET_ROOT) / "metadata" / f"graph_index_{row['family']}.csv"
+    )
 
-    # Experiment 2: pass feature_path as features_pt so the feature matrix is loaded.
-    # Structure-only models (spectral) will receive features but ignore them internally.
-    # feature_path column holds a .pt file; None falls back to identity matrix.
     data = load_graph_data(
         metadata_csv=metadata_csv,
         graph_id=graph_id,
-        spectra_path=row["spectra_path"],
         features_pt=row.get("feature_path"),
         seed=1,
     )
 
     classifier = _get_model(model_key, data.num_classes)
 
-    # ── fit on train_idx (handled internally by method) ──────────────────
-    classifier.fit(data)
+    # Pass precomputed embeddings for spectral methods
+    if isinstance(classifier, SpectralMethod):
+        embedding_map = {
+            "whole": data.whole_eigenspectrum,
+            "kcut": data.kcut_eigenspectrum,
+            "regularized": data.regularized_eigenspectrum,
+        }
+        classifier.fit(data, embeddings=embedding_map[classifier.embedding_type])
+    else:
+        classifier.fit(data)
 
-    # ── score on val and test splits ─────────────────────────────────────
-    val_metrics  = classifier.score(data)
+    val_metrics = classifier.score(data)
     test_metrics = classifier.score(data, use_test_idx=True)
 
     return {
@@ -108,36 +92,13 @@ def run_single_feature(
 
 def run_feature_informativeness_experiment(
     experiment_table: pd.DataFrame,
-    splits_path: str | Path,
     output_csv: str | Path,
     failed_csv: str | Path | None = None,
     optuna_n_trials: int = DEFAULT_OPTUNA_TRIALS,
     optuna_storage_path: str | Path | None = None,
     model_keys: list[str] | None = None,
 ) -> Path:
-    """Run experiment 2 across all graphs, informativeness levels, and models.
-
-    Parameters
-    ----------
-    experiment_table : pd.DataFrame
-        Feature-informativeness experiment table.
-    splits_path : path
-        Precomputed node-split CSV.
-    output_csv : path
-        Destination for raw results.
-    failed_csv : path, optional
-        Log file for failed runs.
-    optuna_n_trials : int
-        Optuna budget per fit.
-    optuna_storage_path : path, optional
-        SQLite path for Optuna studies.
-    model_keys : list[str], optional
-        Subset of MODEL_KEYS.  Defaults to all 9.
-
-    Returns
-    -------
-    Path to the raw results CSV.
-    """
+    """Run experiment 2 across all graphs, informativeness levels, and models."""
     output_csv = Path(output_csv)
     output_csv.parent.mkdir(parents=True, exist_ok=True)
     failed_csv = Path(failed_csv) if failed_csv else output_csv.parent / "failed_runs.csv"
@@ -162,17 +123,13 @@ def run_feature_informativeness_experiment(
 
             try:
                 result = run_single_feature(
-                    model_key=model_key,
-                    row=row,
-                    splits_path=splits_path,
+                    model_key=model_key, row=row,
                     optuna_n_trials=optuna_n_trials,
                     optuna_storage_path=optuna_storage_path,
                 )
                 result_df = pd.DataFrame([result])
                 result_df.to_csv(
-                    output_csv,
-                    mode="a",
-                    header=not header_written,
+                    output_csv, mode="a", header=not header_written,
                     index=False,
                 )
                 header_written = True
@@ -190,9 +147,7 @@ def run_feature_informativeness_experiment(
                     "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
                 }])
                 fail_row.to_csv(
-                    failed_csv,
-                    mode="a",
-                    header=not failed_header_written,
+                    failed_csv, mode="a", header=not failed_header_written,
                     index=False,
                 )
                 failed_header_written = True
@@ -209,14 +164,12 @@ if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
 
     table_path = sys.argv[1] if len(sys.argv) > 1 else (
-        "data/synthetic_benchmark/metadata/feature_informativeness_experiment_table.csv"
+        str(Path(DEFAULT_DATASET_ROOT) / "metadata"
+            / "feature_informativeness_experiment_table.csv")
     )
-    splits = sys.argv[2] if len(sys.argv) > 2 else (
-        "results/feature_informativeness/splits/feature_informativeness_splits.csv"
-    )
-    out = sys.argv[3] if len(sys.argv) > 3 else (
+    out = sys.argv[2] if len(sys.argv) > 2 else (
         "results/feature_informativeness/raw/feature_informativeness_results.csv"
     )
 
     table = pd.read_csv(table_path)
-    run_feature_informativeness_experiment(table, splits, out)
+    run_feature_informativeness_experiment(table, out)

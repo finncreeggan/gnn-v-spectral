@@ -96,7 +96,11 @@ def load_graph_data(
     )
 
     if features_pt is not None:
-        features = torch.load(features_pt, weights_only=False)
+        features_pt = Path(features_pt)
+        if features_pt.suffix == ".npy":
+            features = torch.from_numpy(np.load(features_pt)).float()
+        else:
+            features = torch.load(features_pt, weights_only=False)
     else:
         features = torch.eye(num_nodes)
 

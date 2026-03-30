@@ -1,10 +1,10 @@
 """
-Build master experiment tables from the graph index CSVs delivered by Jamie.
+Build master experiment tables from the graph index CSVs.
 
 Reads graph_index_sbm.csv and graph_index_lfr.csv from the metadata folder,
-resolves local file paths for edges, labels, and the three eigenspectrum
-assets, and writes enriched metadata tables that serve as the single source
-of truth for downstream experiment runners.
+adds the spectra_path column needed by load_graph_data, and writes enriched
+metadata tables that serve as the single source of truth for downstream
+experiment runners.
 """
 
 from __future__ import annotations
@@ -16,7 +16,7 @@ import pandas as pd
 
 logger = logging.getLogger(__name__)
 
-# ── directory layout beneath data/synthetic_benchmark/ ──────────────────────
+# ── directory layout beneath data/cache/synthetic/ ───────────────────────────
 NOISE_TYPE_DIRS = {
     "clean": "clean",
     "random": "random",
@@ -30,23 +30,17 @@ def _resolve_asset_paths(
     row: pd.Series,
     data_root: Path,
 ) -> pd.Series:
-    """Attach absolute file paths for edges, labels, and spectra to one row."""
+    """Attach resolved file paths for edges, labels, and spectra to one row."""
     family = row["family"]
-    noise_dir = NOISE_TYPE_DIRS[row["structural_noise_type"]]
+    noise_dir = NOISE_TYPE_DIRS[row["noise_type"]]
     graph_id = row["graph_id"]
 
     family_root = data_root / family / noise_dir
 
     row["edge_path"] = str(family_root / "edges" / f"{graph_id}.csv")
     row["label_path"] = str(family_root / "labels" / f"{graph_id}_labels.npy")
-    row["whole_spectrum_path"] = str(
-        family_root / "spectra" / "whole" / f"{graph_id}_whole_spectrum.csv"
-    )
-    row["kcut_spectrum_path"] = str(
-        family_root / "spectra" / "kcut" / f"{graph_id}_kcut_spectrum.csv"
-    )
-    row["regularized_spectrum_path"] = str(
-        family_root / "spectra" / "regularized" / f"{graph_id}_regularized_spectrum.csv"
+    row["spectra_path"] = str(
+        Path(family) / noise_dir / "spectra" / f"{graph_id}.pt"
     )
     return row
 
@@ -54,24 +48,33 @@ def _resolve_asset_paths(
 def build_structural_noise_table(
     data_root: str | Path,
     metadata_dir: str | Path | None = None,
+    output_dir: str | Path | None = None,
 ) -> pd.DataFrame:
     """Build the unified metadata table for the structural-noise experiment.
+
+    Also saves enriched graph_index CSVs (with spectra_path column) so that
+    load_graph_data can find the precomputed eigenspectra.
 
     Parameters
     ----------
     data_root : path
-        Root of the ``data/synthetic_benchmark/`` tree.
+        Root of the ``data/cache/synthetic/`` tree.
     metadata_dir : path, optional
         Folder containing ``graph_index_sbm.csv`` and ``graph_index_lfr.csv``.
         Defaults to ``data_root / "metadata"``.
+    output_dir : path, optional
+        Where to write enriched CSVs.  Defaults to ``data_root / "metadata"``.
 
     Returns
     -------
     pd.DataFrame
-        One row per graph instance with resolved asset paths.
+        One row per graph instance with resolved asset paths and
+        structural_noise_* column names.
     """
     data_root = Path(data_root)
     metadata_dir = Path(metadata_dir) if metadata_dir else data_root / "metadata"
+    output_dir = Path(output_dir) if output_dir else data_root / "metadata"
+    output_dir.mkdir(parents=True, exist_ok=True)
 
     frames = []
     for family in FAMILIES:
@@ -86,11 +89,29 @@ def build_structural_noise_table(
     if not frames:
         raise FileNotFoundError(
             f"No graph index CSVs found in {metadata_dir}. "
-            "Ensure Jamie's dataset has been unzipped."
+            "Ensure the dataset has been unzipped."
         )
 
     table = pd.concat(frames, ignore_index=True)
+
+    # Resolve asset paths (edge_path, label_path, spectra_path)
     table = table.apply(_resolve_asset_paths, axis=1, data_root=data_root)
+
+    # Save enriched graph_index CSVs so load_graph_data can read spectra_path
+    for family in FAMILIES:
+        family_df = table[table["family"] == family]
+        if family_df.empty:
+            continue
+        enriched_path = output_dir / f"graph_index_{family}.csv"
+        family_df.to_csv(enriched_path, index=False)
+        logger.info("Saved enriched graph index: %s (%d rows)", enriched_path, len(family_df))
+
+    # Rename columns for the experiment table
+    table = table.rename(columns={
+        "noise_type": "structural_noise_type",
+        "noise_code": "structural_noise_code",
+        "noise_frac": "structural_noise_frac",
+    })
 
     logger.info(
         "Built structural-noise metadata table: %d rows (%s)",
@@ -120,7 +141,7 @@ def build_feature_experiment_table(
     structural_table : pd.DataFrame
         Output of :func:`build_structural_noise_table`.
     features_root : path
-        Root of the ``data/synthetic_benchmark/features/`` tree.
+        Root of the ``data/cache/synthetic/features/`` tree.
     structural_noise_codes : tuple of str
         Which structural-noise codes to include (default: low/med/high).
     informativeness_codes : tuple of str
@@ -189,7 +210,7 @@ def save_metadata_tables(
     output_dir = Path(output_dir) if output_dir else data_root / "metadata"
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    structural = build_structural_noise_table(data_root)
+    structural = build_structural_noise_table(data_root, output_dir=output_dir)
     structural_path = output_dir / "structural_noise_experiment_table.csv"
     structural.to_csv(structural_path, index=False)
     logger.info("Saved structural-noise table to %s", structural_path)
@@ -207,5 +228,5 @@ if __name__ == "__main__":
     import sys
 
     logging.basicConfig(level=logging.INFO)
-    root = Path(sys.argv[1]) if len(sys.argv) > 1 else Path("data/synthetic_benchmark")
+    root = Path(sys.argv[1]) if len(sys.argv) > 1 else Path("data/cache/synthetic")
     save_metadata_tables(root)

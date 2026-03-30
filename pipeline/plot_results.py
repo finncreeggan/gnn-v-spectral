@@ -27,24 +27,24 @@ logger = logging.getLogger(__name__)
 
 # ── Visual constants ────────────────────────────────────────────────────────
 MODEL_COLORS = {
-    "whole_eigen_logreg": "#1f77b4",
-    "whole_eigen_rf": "#aec7e8",
-    "kcut_eigen_logreg": "#ff7f0e",
-    "kcut_eigen_rf": "#ffbb78",
-    "regularized_eigen_logreg": "#2ca02c",
-    "regularized_eigen_rf": "#98df8a",
+    "whole_lr": "#1f77b4",
+    "whole_rf": "#aec7e8",
+    "kcut_lr": "#ff7f0e",
+    "kcut_rf": "#ffbb78",
+    "regularized_lr": "#2ca02c",
+    "regularized_rf": "#98df8a",
     "sgc": "#d62728",
     "gcn": "#9467bd",
     "gat": "#8c564b",
 }
 
 MODEL_LABELS = {
-    "whole_eigen_logreg": "Whole Eigen LR",
-    "whole_eigen_rf": "Whole Eigen RF",
-    "kcut_eigen_logreg": "k-cut Eigen LR",
-    "kcut_eigen_rf": "k-cut Eigen RF",
-    "regularized_eigen_logreg": "Reg. Eigen LR",
-    "regularized_eigen_rf": "Reg. Eigen RF",
+    "whole_lr": "Whole Eigen LR",
+    "whole_rf": "Whole Eigen RF",
+    "kcut_lr": "k-cut Eigen LR",
+    "kcut_rf": "k-cut Eigen RF",
+    "regularized_lr": "Reg. Eigen LR",
+    "regularized_rf": "Reg. Eigen RF",
     "sgc": "SGC",
     "gcn": "GCN",
     "gat": "GAT",
