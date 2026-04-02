@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Literal
+from typing import Literal, Self
 from jaxtyping import Float, Int
 
 import torch
@@ -90,7 +90,7 @@ class SpectralMethod(BaseMethod):
         embeddings: Float[torch.Tensor, "n_nodes n_eigenvectors"] | None = None,
         study_name: str | None = None,
         optuna_storage_path: str | None = None,
-    ) -> SpectralClassifier:
+    ) -> Self:
         """
         Fit classifier on train_idx using spectral embeddings.
 
@@ -127,7 +127,7 @@ class SpectralMethod(BaseMethod):
         
         self.classifier.fit(data, embeddings, features)
         self.embeddings = embeddings
-        return self.classifier
+        return self
 
     def score(
         self,

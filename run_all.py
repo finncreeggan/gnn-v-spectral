@@ -51,7 +51,9 @@ def step_generate_features(feature_table_path: Path) -> pd.DataFrame:
     features_root = DATA_ROOT / "features"
 
     logger.info("Generating features for %d rows ...", len(table))
-    return generate_all_features(table, features_root)
+    enriched = generate_all_features(table, features_root, dataset_root=DATA_ROOT)
+    enriched.to_csv(feature_table_path, index=False)
+    return enriched
 
 
 def step_run_experiment_2(feature_table_path: Path) -> Path:

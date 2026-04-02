@@ -99,6 +99,7 @@ def generate_all_features(
     feature_table: pd.DataFrame,
     output_root: str | Path,
     base_seed: int = 42,
+    dataset_root: str | Path = "data/cache/synthetic",
 ) -> pd.DataFrame:
     """Generate and save feature matrices for every row in the experiment table.
 
@@ -120,6 +121,7 @@ def generate_all_features(
         The input table with an added ``feature_generation_seed`` column.
     """
     output_root = Path(output_root)
+    dataset_root = Path(dataset_root)
     feature_table = feature_table.copy()
     seeds: list[int] = []
 
@@ -128,7 +130,7 @@ def generate_all_features(
         seeds.append(seed)
         rng = np.random.default_rng(seed)
 
-        label_path = Path(row["label_path"])
+        label_path = dataset_root / row["label_path"]
         if not label_path.exists():
             logger.warning(
                 "Label file not found: %s – skipping feature generation for %s",
@@ -143,7 +145,7 @@ def generate_all_features(
         alpha = float(row["feature_informativeness_frac"])
         features = generate_features_for_graph(labels, n_communities, alpha, rng)
 
-        out_path = Path(row["feature_path"])
+        out_path = dataset_root / row["feature_path"]
         out_path.parent.mkdir(parents=True, exist_ok=True)
         np.save(out_path, features)
 

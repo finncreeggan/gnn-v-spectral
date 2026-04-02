@@ -47,10 +47,14 @@ def run_single_feature(
         Path(DEFAULT_DATASET_ROOT) / "metadata" / f"graph_index_{row['family']}.csv"
     )
 
+    feature_path = row.get("feature_path")
+    if feature_path is not None:
+        feature_path = str(Path(DEFAULT_DATASET_ROOT) / feature_path)
+
     data = load_graph_data(
         metadata_csv=metadata_csv,
         graph_id=graph_id,
-        features_pt=row.get("feature_path"),
+        features_pt=feature_path,
         seed=1,
     )
 

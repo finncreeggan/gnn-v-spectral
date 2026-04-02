@@ -35,13 +35,11 @@ def _resolve_asset_paths(
     noise_dir = NOISE_TYPE_DIRS[row["noise_type"]]
     graph_id = row["graph_id"]
 
-    family_root = data_root / family / noise_dir
+    relative_root = Path(family) / noise_dir
 
-    row["edge_path"] = str(family_root / "edges" / f"{graph_id}.csv")
-    row["label_path"] = str(family_root / "labels" / f"{graph_id}_labels.npy")
-    row["spectra_path"] = str(
-        Path(family) / noise_dir / "spectra" / f"{graph_id}.pt"
-    )
+    row["edge_path"] = str(relative_root / "edges" / f"{graph_id}.csv")
+    row["label_path"] = str(relative_root / "labels" / f"{graph_id}_labels.npy")
+    row["spectra_path"] = str(relative_root / "spectra" / f"{graph_id}.pt")
     return row
 
 
@@ -124,7 +122,7 @@ def build_structural_noise_table(
 def build_feature_experiment_table(
     structural_table: pd.DataFrame,
     features_root: str | Path,
-    structural_noise_codes: tuple[str, ...] = ("015", "030", "045"),
+    structural_noise_codes: tuple[str | int, ...] = ("015", "030", "045"),
     informativeness_codes: tuple[str, ...] = (
         "100", "090", "080", "070", "060",
         "050", "040", "030", "020", "010", "000",
@@ -155,8 +153,17 @@ def build_feature_experiment_table(
     features_root = Path(features_root)
 
     # Filter to selected structural noise levels (exclude clean graphs)
+    # Handle both int (15) and zero-padded string ("015") codes
+    str_codes = {str(c) for c in structural_noise_codes}
+    int_codes = set()
+    for c in structural_noise_codes:
+        try:
+            int_codes.add(int(c))
+        except (ValueError, TypeError):
+            pass
     selected = structural_table[
-        structural_table["structural_noise_code"].astype(str).isin(structural_noise_codes)
+        structural_table["structural_noise_code"].astype(str).isin(str_codes)
+        | structural_table["structural_noise_code"].isin(int_codes)
     ].copy()
 
     if selected.empty:
@@ -182,7 +189,7 @@ def build_feature_experiment_table(
                 f"{graph_id}_feature_informativeness_{code}_features.npy"
             )
             new_row["feature_path"] = str(
-                features_root / family / noise_dir / feature_filename
+                Path("features") / family / noise_dir / feature_filename
             )
             rows.append(new_row)
 
