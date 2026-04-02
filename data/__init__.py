@@ -102,7 +102,8 @@ def load_graph_data(
         else:
             features = torch.load(features_pt, weights_only=False)
     else:
-        features = torch.eye(num_nodes)
+        rng = torch.Generator().manual_seed(seed)
+        features = torch.randn(num_nodes, 5, generator=rng)
 
     torch.manual_seed(seed)
     perm      = torch.randperm(num_nodes)
