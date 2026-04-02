@@ -47,17 +47,17 @@ class ExperimentConfig:
     seed: int
 
     # GNN shared
-    hidden_dim: int | None = None
-    num_layers: int | None = None
-    lr: float | None = None
-    epochs: int | None = None
-    dropout: float | None = None
+    hidden_dim: int
+    num_layers: int
+    lr: float 
+    epochs: int 
+    dropout: float
     # GAT-specific
-    num_heads: int | None = None
+    num_heads: int
     # SGC-specific
-    k_hops: int | None = None
+    k_hops: int
     # RF-specific
-    n_estimators: int | None = None
+    n_estimators: int
 
 
 class BaseMethod(abc.ABC):

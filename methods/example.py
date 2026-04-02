@@ -22,7 +22,7 @@ config = ExperimentConfig(
     hidden_dim=32,
     num_layers=2,
     lr=1e-3,
-    epochs=10,
+    epochs=50,
     dropout=0.0,
     num_heads=2,
     k_hops=2,
@@ -38,7 +38,7 @@ print("Instantiated methods:", list(methods.keys()))
 # ---------------------------------------------------------------------------
 # Run fit + score on "whole_lr" (spectral; GNN stubs raise NotImplementedError)
 # ---------------------------------------------------------------------------
-method = methods["kcut_lr"] # whole eigenspectrum + logistic regression
+method = methods["gat"]
 method.fit(data, embeddings=data.kcut_eigenspectrum)
 
 val_score  = method.score(data)
