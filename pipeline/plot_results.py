@@ -65,7 +65,7 @@ def _style_ax(ax: plt.Axes, xlabel: str, ylabel: str, title: str) -> None:
     ax.set_xlabel(xlabel, fontsize=12)
     ax.set_ylabel(ylabel, fontsize=12)
     ax.set_title(title, fontsize=14)
-    ax.legend(fontsize=8, loc="best")
+
     ax.grid(True, alpha=0.3)
     ax.set_ylim(-0.05, 1.05)
 
@@ -106,8 +106,7 @@ def plot_structural_noise_joint(
                 yerr = ms["std_test_ari_overall"].values
 
                 color = MODEL_COLORS.get(model, None)
-                label = MODEL_LABELS.get(model, model)
-                ax.errorbar(x, y, yerr=yerr, marker="o", label=label,
+                ax.errorbar(x, y, yerr=yerr, marker="o",
                             color=color, capsize=3, linewidth=2)
 
             title = (
@@ -116,7 +115,7 @@ def plot_structural_noise_joint(
             )
             _style_ax(ax, "Structural Noise Fraction", "Test ARI", title)
 
-            fname = f"joint_{family}_{noise_type}.pdf"
+            fname = f"joint_{family}_{noise_type}.jpg"
             path = output_dir / fname
             fig.savefig(path, bbox_inches="tight", dpi=300)
             plt.close(fig)
@@ -168,7 +167,7 @@ def plot_structural_noise_by_model(
                     gsub["structural_noise_frac"],
                     gsub["mean_test_ari"],
                     alpha=0.3, color=MODEL_COLORS.get(model, "gray"),
-                    label="Graph-level ARI", zorder=2,
+                    zorder=2,
                 )
 
                 # condition-level mean
@@ -177,7 +176,7 @@ def plot_structural_noise_by_model(
                     csub_sorted["structural_noise_frac"],
                     csub_sorted["mean_test_ari_overall"],
                     "o-", color=MODEL_COLORS.get(model, "gray"),
-                    linewidth=2, markersize=8, label="Mean ARI", zorder=3,
+                    linewidth=2, markersize=8, zorder=3,
                 )
 
                 # trend line
@@ -188,7 +187,7 @@ def plot_structural_noise_by_model(
                     p = np.poly1d(z)
                     xfit = np.linspace(x.min(), x.max(), 100)
                     ax.plot(xfit, p(xfit), "--", color="black",
-                            alpha=0.5, label="Trend", zorder=1)
+                            alpha=0.5, zorder=1)
 
                 label = MODEL_LABELS.get(model, model)
                 title = (
@@ -198,7 +197,7 @@ def plot_structural_noise_by_model(
                 )
                 _style_ax(ax, "Structural Noise Fraction", "Test ARI", title)
 
-                fname = f"{model}_{family}_{noise_type}.pdf"
+                fname = f"{model}_{family}_{noise_type}.jpg"
                 path = output_dir / fname
                 fig.savefig(path, bbox_inches="tight", dpi=300)
                 plt.close(fig)
@@ -245,24 +244,14 @@ def plot_feature_informativeness_joint(
                     )
                     x = ms["feature_informativeness_frac"].values
                     color = MODEL_COLORS.get(model, None)
-                    label = MODEL_LABELS.get(model, model)
 
                     # test curve (solid)
                     ax.errorbar(
                         x,
                         ms["mean_test_ari_overall"].values,
                         yerr=ms["std_test_ari_overall"].values,
-                        marker="o", label=f"{label} (test)",
+                        marker="o",
                         color=color, capsize=3, linewidth=2,
-                    )
-                    # validation curve (dashed)
-                    ax.errorbar(
-                        x,
-                        ms["mean_validation_ari_overall"].values,
-                        yerr=ms["std_validation_ari_overall"].values,
-                        marker="s", label=f"{label} (val)",
-                        color=color, capsize=3, linewidth=1.5,
-                        linestyle="--", alpha=0.6,
                     )
 
                 noise_frac = sub["structural_noise_frac"].iloc[0]
@@ -279,7 +268,7 @@ def plot_feature_informativeness_joint(
                 )
                 ax.invert_xaxis()  # 1.0 (informative) on left, 0.0 on right
 
-                fname = f"joint_{family}_{noise_type}_{noise_code}.pdf"
+                fname = f"joint_{family}_{noise_type}_{noise_code}.jpg"
                 path = output_dir / fname
                 fig.savefig(path, bbox_inches="tight", dpi=300)
                 plt.close(fig)
@@ -334,7 +323,7 @@ def plot_feature_informativeness_by_model(
                         gsub["feature_informativeness_frac"],
                         gsub["mean_test_ari"],
                         alpha=0.3, color=color,
-                        label="Graph-level test ARI", zorder=2,
+                        zorder=2,
                     )
 
                     csub_sorted = csub.sort_values(
@@ -347,14 +336,7 @@ def plot_feature_informativeness_by_model(
                         x,
                         csub_sorted["mean_test_ari_overall"].values,
                         "o-", color=color, linewidth=2,
-                        label="Mean test ARI", zorder=3,
-                    )
-                    # mean validation curve
-                    ax.plot(
-                        x,
-                        csub_sorted["mean_validation_ari_overall"].values,
-                        "s--", color=color, linewidth=1.5, alpha=0.6,
-                        label="Mean val ARI", zorder=3,
+                        zorder=3,
                     )
 
                     noise_frac = csub["structural_noise_frac"].iloc[0] if not csub.empty else "?"
@@ -368,7 +350,7 @@ def plot_feature_informativeness_by_model(
                     _style_ax(ax, "Feature Informativeness", "ARI", title)
                     ax.invert_xaxis()
 
-                    fname = f"{model}_{family}_{noise_type}_{noise_code}.pdf"
+                    fname = f"{model}_{family}_{noise_type}_{noise_code}.jpg"
                     path = output_dir / fname
                     fig.savefig(path, bbox_inches="tight", dpi=300)
                     plt.close(fig)
